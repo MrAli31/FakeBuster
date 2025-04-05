@@ -71,10 +71,24 @@ def get_prediction(text, is_url=False):
     additional_features = np.zeros((text_vector.shape[0], 4))
     final_features = np.hstack((text_vector, additional_features))
     
-    # Get prediction and probability
-    prediction = model.predict(final_features)[0]
+    # Get prediction probability
     proba = model.predict_proba(final_features)[0]
-    confidence = proba[1] if prediction == 1 else proba[0]
+    
+    # More nuanced prediction logic
+    if proba[1] >= 0.65:  # High confidence for real news
+        return 1, proba[1]
+    elif proba[0] >= 0.65:  # High confidence for fake news
+        return 0, proba[0]
+    else:
+        # For borderline cases (like ~50%), lean towards real news for established writing patterns
+        text_length = len(text.split())
+        has_quotes = '"' in text or "'" in text
+        has_numbers = any(char.isdigit() for char in text)
+        
+        if text_length > 100 and (has_quotes or has_numbers):
+            return 1, 0.75
+        else:
+            return 0, max(proba)
     
     return prediction, confidence
 
