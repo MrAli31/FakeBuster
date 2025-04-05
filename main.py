@@ -35,18 +35,19 @@ def predict_fake_news_by_url(url):
     is_known_reliable = any(rd in domain for rd in reliable_domains)
     has_news_keywords = any(kw in domain for kw in ['news', 'media', 'press'])
     
-    # Enhanced reliability scoring system
-    is_exact_match = any(domain.endswith(rd) for rd in reliable_domains)
+    # Simple domain-based detection for reliable sources
+    for reliable_domain in reliable_domains:
+        if reliable_domain in domain:
+            return ("Real News", 0.95)  # High confidence for trusted sources
     
+    # Fall back to the scoring system for unknown domains
     reliability_score = (
-        is_https * 2 +  # HTTPS: 2 points
-        (8 if is_known_reliable else 0) +  # Known reliable domain: 8 points
-        (2 if has_news_keywords else 0) +  # News keywords: 2 points
-        (5 if is_exact_match else 0)  # Exact domain match: 5 points
+        is_https * 1 +  # HTTPS: 1 point
+        (2 if has_news_keywords else 0)  # News keywords: 2 points
     )
-    url_features = np.array([[domain_length, min(reliability_score, 15)]])  # Increased cap for better detection
-
-    # Combine features
+    url_features = np.array([[domain_length, reliability_score]])
+    
+    # Combine features for unknown domains
     features = np.hstack((text_vec, np.array([[2500, 100]]), url_features))
     prediction = model.predict(features)[0]
     probability = model.predict_proba(features)[0]
