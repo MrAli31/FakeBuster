@@ -18,6 +18,15 @@ except Exception as e:
 
 st.title("FakeNews Buster")
 url_input = st.text_input("News URL", "http://example.com")
+article_content = st.text_area("Or paste article content here", height=200)
+
+def analyze_text_content(text):
+    # Process and vectorize the text
+    text_features = tfidf.transform([text]).toarray()
+    prediction = model.predict(text_features)[0]
+    probability = model.predict_proba(text_features)[0]
+    confidence = probability[1] if prediction == 1 else probability[0]
+    return ("Real News" if prediction == 1 else "Fake News", confidence)
 
 def predict_fake_news_by_url(url):
     # List of known reliable news domains
@@ -76,8 +85,13 @@ def predict_fake_news_by_url(url):
     return ("Real News" if prediction == 1 else "Fake News", confidence)
 
 if st.button("Detect Fake News"):
-    if url_input and url_input != "http://example.com":
+    if article_content:
+        result, confidence = analyze_text_content(article_content)
+    elif url_input and url_input != "http://example.com":
         result, confidence = predict_fake_news_by_url(url_input)
+    else:
+        st.warning("Please provide either a URL or article content!")
+        st.stop()
         confidence_percentage = confidence * 100
         
         if result == "Real News":
