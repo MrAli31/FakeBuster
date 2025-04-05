@@ -1,125 +1,131 @@
+
 import streamlit as st
 import joblib
 import pandas as pd
 import numpy as np
-import re
 from urllib.parse import urlparse
-import sklearn
 import warnings
 warnings.filterwarnings('ignore')
 
-# Load your trained model and vectorizer
-try:
-    model = joblib.load('my_fake_news_model.pkl')
-    tfidf = joblib.load('my_tfidf_vectorizer.pkl')
-except Exception as e:
-    st.error(f"Error loading model or vectorizer: {str(e)}")
-    st.stop()
+# Page config
+st.set_page_config(page_title="FakeNews Detector", layout="wide")
 
-st.title("FakeNews Buster")
-url_input = st.text_input("News URL", "http://example.com")
-article_content = st.text_area("Or paste article content here", height=200)
+# Custom CSS
+st.markdown("""
+    <style>
+    .main {
+        padding: 2rem;
+    }
+    .stButton>button {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    .status-box {
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-def analyze_text_content(text):
-    # Process and vectorize the text
-    text_features = tfidf.transform([text]).toarray()
-    # Add the additional features (domain length and protocol score) as zeros
-    additional_features = np.zeros((text_features.shape[0], 4))
-    combined_features = np.hstack((text_features, additional_features))
-    prediction = model.predict(combined_features)[0]
-    probability = model.predict_proba(combined_features)[0]
-    confidence = probability[1] if prediction == 1 else probability[0]
-    return ("Real News" if prediction == 1 else "Fake News", confidence)
+# Load models
+@st.cache_resource
+def load_models():
+    try:
+        model = joblib.load('my_fake_news_model.pkl')
+        tfidf = joblib.load('my_tfidf_vectorizer.pkl')
+        return model, tfidf
+    except Exception as e:
+        st.error(f"Error loading models: {str(e)}")
+        st.stop()
 
-def predict_fake_news_by_url(url):
-    # List of known reliable news domains
-    reliable_domains = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org', 'nytimes.com', 'washingtonpost.com', 'theguardian.com', 'wsj.com', 'bloomberg.com']
-    
-    # Create empty text vector (since we're not using text)
-    text_vec = np.zeros((1, 500))  # Shape: (1, 500)
-    
-    # Parse URL and extract components
-    parsed_url = urlparse(str(url))
-    domain = parsed_url.netloc.lower()
-    
-    # Analyze web protocols and security
-    is_https = 1 if parsed_url.scheme == 'https' else 0
-    has_path = 1 if parsed_url.path and parsed_url.path != '/' else 0
-    has_query = 1 if parsed_url.query else 0
-    domain_parts = domain.split('.')
-    is_subdomain = len(domain_parts) > 2
-    domain_length = len(domain)
-    
-    # Calculate protocol score
-    protocol_score = (
-        is_https * 3 +  # HTTPS is important
-        has_path * 1 +  # Having a specific path is good
-        (0 if has_query > 3 else 1) +  # Too many query parameters might be suspicious
-        (1 if is_subdomain else 2)  # Subdomains might be slightly less trustworthy
-    )
-    
-    # Additional URL analysis
-    is_known_reliable = any(rd in domain for rd in reliable_domains)
-    has_news_keywords = any(kw in domain for kw in ['news', 'media', 'press'])
-    
-    # Calculate final reliability score
-    reliability_score = (
-        protocol_score +
-        (5 if any(rd in domain for rd in reliable_domains) else 0) +  # Known domains
-        (2 if has_news_keywords else 0) +  # News keywords
-        (1 if domain_length < 30 else 0)  # Reasonable domain length
-    )
-    
-    # Normalize the score
-    normalized_score = min(reliability_score / 10.0, 1.0)
-    
-    # Use protocol analysis for classification
-    if normalized_score > 0.7:
-        return ("Real News", normalized_score)
-    
-    url_features = np.array([[domain_length, protocol_score]])
-    
-    # Combine features for unknown domains
-    features = np.hstack((text_vec, np.array([[2500, 100]]), url_features))
-    prediction = model.predict(features)[0]
-    probability = model.predict_proba(features)[0]
-    
-    confidence = probability[1] if prediction == 1 else probability[0]
-    return ("Real News" if prediction == 1 else "Fake News", confidence)
+model, tfidf = load_models()
 
-if st.button("Detect Fake News"):
-    if article_content:
-        result, confidence = analyze_text_content(article_content)
-        confidence_percentage = confidence * 100
-        if result == "Real News":
-            st.success(f"Prediction: {result} ✅ (Confidence: {confidence_percentage:.2f}%)")
-            st.info("Tips for real news:\n- Check multiple sources\n- Look for recent updates\n- Verify the author")
-        else:
-            st.error(f"Prediction: {result} 🚫 (Confidence: {confidence_percentage:.2f}%)")
-            st.warning("Warning signs of fake news:\n- Suspicious domain\n- Lack of HTTPS\n- Unusual URL structure")
-    elif url_input and url_input != "http://example.com":
-        result, confidence = predict_fake_news_by_url(url_input)
-        confidence_percentage = confidence * 100
-        if result == "Real News":
-            st.success(f"Prediction: {result} ✅ (Confidence: {confidence_percentage:.2f}%)")
-            st.info("Tips for real news:\n- Check multiple sources\n- Look for recent updates\n- Verify the author")
-        else:
-            st.error(f"Prediction: {result} 🚫 (Confidence: {confidence_percentage:.2f}%)")
-            st.warning("Warning signs of fake news:\n- Suspicious domain\n- Lack of HTTPS\n- Unusual URL structure")
-    else:
-        st.warning("Please provide either a URL or article content!")
+def preprocess_text(text):
+    # Basic text cleaning
+    text = text.lower()
+    text = text.strip()
+    return text
+
+def get_prediction(text, is_url=False):
+    text = preprocess_text(text)
+    
+    if is_url:
+        parsed_url = urlparse(text)
+        domain = parsed_url.netloc.lower()
         
-st.markdown("---")
-st.markdown("### Try these example URLs:")
-st.markdown("#### Reliable News Sources:")
-st.markdown("- Reuters: https://www.reuters.com")
-st.markdown("- AP News: https://www.apnews.com")
-st.markdown("- BBC News: https://www.bbc.com/news")
-st.markdown("- NPR: https://www.npr.org")
-st.markdown("- The Guardian: https://www.theguardian.com")
-st.markdown("- Bloomberg: https://www.bloomberg.com")
+        # Reliable domains check
+        reliable_domains = ['reuters.com', 'apnews.com', 'bbc.com', 'npr.org', 'nytimes.com']
+        if any(domain.endswith(rd) for rd in reliable_domains):
+            return 1, 0.95
+            
+        # Suspicious patterns check
+        suspicious = ['wp', 'wordpress', 'blog', 'free', '.tk', '.ml']
+        if any(s in domain for s in suspicious):
+            return 0, 0.85
+    
+    # Vectorize text
+    text_vector = tfidf.transform([text])
+    
+    # Get prediction and probability
+    prediction = model.predict(text_vector)[0]
+    proba = model.predict_proba(text_vector)[0]
+    confidence = proba[1] if prediction == 1 else proba[0]
+    
+    return prediction, confidence
 
-st.markdown("#### Example Article URLs:")
-st.markdown("- Reuters Article: https://www.reuters.com/world/")
-st.markdown("- AP News Article: https://apnews.com/hub/us-news")
-st.markdown("- BBC Article: https://www.bbc.com/news/world")
+# UI Components
+st.title("🔍 FakeNews Detector")
+st.markdown("### Detect fake news using AI")
+
+tab1, tab2 = st.tabs(["📰 Article Analysis", "🔗 URL Analysis"])
+
+with tab1:
+    article = st.text_area("Paste the article text here:", height=200)
+    if st.button("Analyze Article", key="article_btn"):
+        if article:
+            with st.spinner("Analyzing..."):
+                prediction, confidence = get_prediction(article)
+                if prediction == 1:
+                    st.success(f"✅ Likely Real News (Confidence: {confidence:.2%})")
+                else:
+                    st.error(f"⚠️ Likely Fake News (Confidence: {confidence:.2%})")
+        else:
+            st.warning("Please enter some text to analyze")
+
+with tab2:
+    url = st.text_input("Enter news article URL:")
+    if st.button("Analyze URL", key="url_btn"):
+        if url:
+            with st.spinner("Analyzing..."):
+                prediction, confidence = get_prediction(url, is_url=True)
+                if prediction == 1:
+                    st.success(f"✅ Likely Real News (Confidence: {confidence:.2%})")
+                else:
+                    st.error(f"⚠️ Likely Fake News (Confidence: {confidence:.2%})")
+        else:
+            st.warning("Please enter a URL to analyze")
+
+# Tips section
+with st.expander("📚 Tips for Spotting Fake News"):
+    st.markdown("""
+    - **Check the source:** Verify the website's reputation
+    - **Check the date:** Old news may be recirculated out of context
+    - **Check the author:** Look for the author's credentials
+    - **Check the facts:** Cross-reference with other reliable sources
+    - **Check your biases:** Be aware of your own confirmation bias
+    """)
+
+# Example section
+st.markdown("---")
+st.markdown("### Try these reliable news sources:")
+cols = st.columns(3)
+with cols[0]:
+    st.markdown("- [Reuters](https://www.reuters.com)")
+    st.markdown("- [AP News](https://www.apnews.com)")
+with cols[1]:
+    st.markdown("- [BBC News](https://www.bbc.com/news)")
+    st.markdown("- [NPR](https://www.npr.org)")
+with cols[2]:
+    st.markdown("- [NY Times](https://www.nytimes.com)")
+    st.markdown("- [The Guardian](https://www.theguardian.com)")
