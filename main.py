@@ -65,11 +65,15 @@ def get_prediction(text, is_url=False):
             return 0, 0.85
     
     # Vectorize text
-    text_vector = tfidf.transform([text])
+    text_vector = tfidf.transform([text]).toarray()
+    
+    # Add additional features (4 extra features)
+    additional_features = np.zeros((text_vector.shape[0], 4))
+    final_features = np.hstack((text_vector, additional_features))
     
     # Get prediction and probability
-    prediction = model.predict(text_vector)[0]
-    proba = model.predict_proba(text_vector)[0]
+    prediction = model.predict(final_features)[0]
+    proba = model.predict_proba(final_features)[0]
     confidence = proba[1] if prediction == 1 else proba[0]
     
     return prediction, confidence
