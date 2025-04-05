@@ -26,26 +26,46 @@ def predict_fake_news_by_url(url):
     # Create empty text vector (since we're not using text)
     text_vec = np.zeros((1, 500))  # Shape: (1, 500)
     
-    # Extract URL features
-    domain = urlparse(str(url)).netloc.lower()
-    is_https = 1 if 'https' in str(url) else 0
+    # Parse URL and extract components
+    parsed_url = urlparse(str(url))
+    domain = parsed_url.netloc.lower()
+    
+    # Analyze web protocols and security
+    is_https = 1 if parsed_url.scheme == 'https' else 0
+    has_path = 1 if parsed_url.path and parsed_url.path != '/' else 0
+    has_query = 1 if parsed_url.query else 0
+    domain_parts = domain.split('.')
+    is_subdomain = len(domain_parts) > 2
     domain_length = len(domain)
+    
+    # Calculate protocol score
+    protocol_score = (
+        is_https * 3 +  # HTTPS is important
+        has_path * 1 +  # Having a specific path is good
+        (0 if has_query > 3 else 1) +  # Too many query parameters might be suspicious
+        (1 if is_subdomain else 2)  # Subdomains might be slightly less trustworthy
+    )
     
     # Additional URL analysis
     is_known_reliable = any(rd in domain for rd in reliable_domains)
     has_news_keywords = any(kw in domain for kw in ['news', 'media', 'press'])
     
-    # Simple domain-based detection for reliable sources
-    for reliable_domain in reliable_domains:
-        if reliable_domain in domain:
-            return ("Real News", 0.95)  # High confidence for trusted sources
-    
-    # Fall back to the scoring system for unknown domains
+    # Calculate final reliability score
     reliability_score = (
-        is_https * 1 +  # HTTPS: 1 point
-        (2 if has_news_keywords else 0)  # News keywords: 2 points
+        protocol_score +
+        (5 if any(rd in domain for rd in reliable_domains) else 0) +  # Known domains
+        (2 if has_news_keywords else 0) +  # News keywords
+        (1 if domain_length < 30 else 0)  # Reasonable domain length
     )
-    url_features = np.array([[domain_length, reliability_score]])
+    
+    # Normalize the score
+    normalized_score = min(reliability_score / 10.0, 1.0)
+    
+    # Use protocol analysis for classification
+    if normalized_score > 0.7:
+        return ("Real News", normalized_score)
+    
+    url_features = np.array([[domain_length, protocol_score]])
     
     # Combine features for unknown domains
     features = np.hstack((text_vec, np.array([[2500, 100]]), url_features))
