@@ -87,13 +87,16 @@ def predict_fake_news_by_url(url):
 if st.button("Detect Fake News"):
     if article_content:
         result, confidence = analyze_text_content(article_content)
+        confidence_percentage = confidence * 100
+        if result == "Real News":
+            st.success(f"Prediction: {result} ✅ (Confidence: {confidence_percentage:.2f}%)")
+            st.info("Tips for real news:\n- Check multiple sources\n- Look for recent updates\n- Verify the author")
+        else:
+            st.error(f"Prediction: {result} 🚫 (Confidence: {confidence_percentage:.2f}%)")
+            st.warning("Warning signs of fake news:\n- Suspicious domain\n- Lack of HTTPS\n- Unusual URL structure")
     elif url_input and url_input != "http://example.com":
         result, confidence = predict_fake_news_by_url(url_input)
-    else:
-        st.warning("Please provide either a URL or article content!")
-        st.stop()
         confidence_percentage = confidence * 100
-        
         if result == "Real News":
             st.success(f"Prediction: {result} ✅ (Confidence: {confidence_percentage:.2f}%)")
             st.info("Tips for real news:\n- Check multiple sources\n- Look for recent updates\n- Verify the author")
@@ -101,7 +104,7 @@ if st.button("Detect Fake News"):
             st.error(f"Prediction: {result} 🚫 (Confidence: {confidence_percentage:.2f}%)")
             st.warning("Warning signs of fake news:\n- Suspicious domain\n- Lack of HTTPS\n- Unusual URL structure")
     else:
-        st.warning("Please provide a valid URL!")
+        st.warning("Please provide either a URL or article content!")
         
 st.markdown("---")
 st.markdown("### Try these example URLs:")
