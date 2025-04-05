@@ -5,20 +5,18 @@ import numpy as np
 import re
 from urllib.parse import urlparse
 import sklearn
-
-# Print sklearn version for debugging
-st.write(f"Using scikit-learn version: {sklearn.__version__}")
+import warnings
+warnings.filterwarnings('ignore')
 
 # Load your trained model and vectorizer
 try:
     model = joblib.load('my_fake_news_model.pkl')
     tfidf = joblib.load('my_tfidf_vectorizer.pkl')
-    st.success("Model and vectorizer loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model or vectorizer: {str(e)}")
     st.stop()
 
-st.title("My Fake News Detector")
+st.title("FakeNews Buster")
 title_input = st.text_input("News Title", "Enter title...")
 text_input = st.text_area("News Article Text", "Enter article text...")
 url_input = st.text_input("News URL", "http://example.com")
