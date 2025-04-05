@@ -21,7 +21,7 @@ url_input = st.text_input("News URL", "http://example.com")
 
 def predict_fake_news_by_url(url):
     # List of known reliable news domains
-    reliable_domains = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org']
+    reliable_domains = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org', 'nytimes.com', 'washingtonpost.com', 'theguardian.com', 'wsj.com', 'bloomberg.com']
     
     # Create empty text vector (since we're not using text)
     text_vec = np.zeros((1, 500))  # Shape: (1, 500)
@@ -63,5 +63,15 @@ if st.button("Detect Fake News"):
         
 st.markdown("---")
 st.markdown("### Try these example URLs:")
-st.markdown("- Real News: https://www.reuters.com")
-st.markdown("- Real News: https://www.apnews.com")
+st.markdown("#### Reliable News Sources:")
+st.markdown("- Reuters: https://www.reuters.com")
+st.markdown("- AP News: https://www.apnews.com")
+st.markdown("- BBC News: https://www.bbc.com/news")
+st.markdown("- NPR: https://www.npr.org")
+st.markdown("- The Guardian: https://www.theguardian.com")
+st.markdown("- Bloomberg: https://www.bloomberg.com")
+
+st.markdown("#### Example Article URLs:")
+st.markdown("- Reuters Article: https://www.reuters.com/world/")
+st.markdown("- AP News Article: https://apnews.com/hub/us-news")
+st.markdown("- BBC Article: https://www.bbc.com/news/world")
