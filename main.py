@@ -35,9 +35,14 @@ def predict_fake_news_by_url(url):
     is_known_reliable = any(rd in domain for rd in reliable_domains)
     has_news_keywords = any(kw in domain for kw in ['news', 'media', 'press'])
     
-    # Adjust features based on reliability
-    reliability_score = is_https + (2 if is_known_reliable else 0) + (1 if has_news_keywords else 0)
-    url_features = np.array([[domain_length, reliability_score]])
+    # Adjust features based on reliability with higher weights for trusted domains
+    reliability_score = (
+        is_https * 1 +  # HTTPS: 1 point
+        (5 if is_known_reliable else 0) +  # Known reliable domain: 5 points
+        (2 if has_news_keywords else 0) +  # News keywords: 2 points
+        (3 if any(domain.endswith(rd) for rd in reliable_domains) else 0)  # Exact domain match: 3 points
+    )
+    url_features = np.array([[domain_length, min(reliability_score, 10)]])  # Cap at 10 to avoid overfitting
 
     # Combine features
     features = np.hstack((text_vec, np.array([[2500, 100]]), url_features))
