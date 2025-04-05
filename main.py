@@ -23,8 +23,11 @@ article_content = st.text_area("Or paste article content here", height=200)
 def analyze_text_content(text):
     # Process and vectorize the text
     text_features = tfidf.transform([text]).toarray()
-    prediction = model.predict(text_features)[0]
-    probability = model.predict_proba(text_features)[0]
+    # Add the additional features (domain length and protocol score) as zeros
+    additional_features = np.zeros((text_features.shape[0], 4))
+    combined_features = np.hstack((text_features, additional_features))
+    prediction = model.predict(combined_features)[0]
+    probability = model.predict_proba(combined_features)[0]
     confidence = probability[1] if prediction == 1 else probability[0]
     return ("Real News" if prediction == 1 else "Fake News", confidence)
 
